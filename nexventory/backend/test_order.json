@@ -1,0 +1,18 @@
+{
+  "customer": {
+    "name": "Jane Doe",
+    "phone": "1234567890",
+    "email": "jane@example.com"
+  },
+  "items": [
+    {
+      "productId": "PROD-001",
+      "name": "Wireless Headphones",
+      "price": 99.99,
+      "quantity": 2,
+      "total": 199.98
+    }
+  ],
+  "totalAmount": 199.98,
+  "date": "2023-11-01"
+}
