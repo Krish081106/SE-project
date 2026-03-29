@@ -165,6 +165,24 @@ export const NexventoryProvider = ({ children }) => {
         }
     };
 
+    const deductStockLocally = (orderItems) => {
+        setProducts(prev => {
+            const next = [...prev];
+            orderItems.forEach(item => {
+                const pIndex = next.findIndex(p => p.id === item.productId);
+                if (pIndex !== -1) {
+                    const newStock = Math.max(0, next[pIndex].stock - (parseInt(item.quantity) || 0));
+                    let newStatus = next[pIndex].status;
+                    if (newStock === 0) newStatus = 'Out of Stock';
+                    else if (newStock < 10) newStatus = 'Low Stock';
+                    else newStatus = 'In Stock';
+                    next[pIndex] = { ...next[pIndex], stock: newStock, status: newStatus };
+                }
+            });
+            return next;
+        });
+    };
+
     const addOrder = async (order) => {
         try {
             const response = await fetch(`${API_URL}/orders`, {
@@ -176,15 +194,20 @@ export const NexventoryProvider = ({ children }) => {
             
             if (response.ok) {
                 setOrders(prev => [data, ...prev]);
+                deductStockLocally(order.items);
                 // Refresh products to show updated stock
-                await refreshProducts();
+                refreshProducts();
+                return true;
             } else {
                 alert(data.message || "Failed to place order");
+                return false;
             }
         } catch (error) {
             console.error("Failed to add order to backend", error);
             // Fallback
             setOrders(prev => [order, ...prev]);
+            deductStockLocally(order.items);
+            return true;
         }
     };
 
@@ -202,15 +225,19 @@ export const NexventoryProvider = ({ children }) => {
         const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
 
         let todayRevenue = 0;
+        let todayProfit = 0;
         const todayCustomers = new Set();
         
         let yesterdayRevenue = 0;
+        let yesterdayProfit = 0;
         const yesterdayCustomers = new Set();
 
         const weekLabels = [];
         const weekData = [];
+        const weekProfitData = [];
         const monthLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
         const monthData = [0, 0, 0, 0];
+        const monthProfitData = [0, 0, 0, 0];
         const monthOrdersData = [0, 0, 0, 0];
 
         const tempDate = new Date();
@@ -219,18 +246,24 @@ export const NexventoryProvider = ({ children }) => {
             d.setDate(tempDate.getDate() - i);
             weekLabels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
             weekData.push(0);
+            weekProfitData.push(0);
         }
 
         orders.forEach(order => {
             const orderTotal = order.totalAmount || order.total || 0;
             const orderDateStr = getLocalYYYYMMDD(new Date(order.date));
+            const subtotal = order.items?.reduce((s, i) => s + ((i.price || 0) * (i.quantity || 0)), 0) || 0;
+            const wholesaleTotal = order.items?.reduce((s, i) => s + ((i.wholesalePrice || 0) * (i.quantity || 0)), 0) || 0;
+            const profit = subtotal - wholesaleTotal;
 
             if (orderDateStr === todayStr) {
                 todayRevenue += orderTotal;
+                todayProfit += profit;
                 const customerIdentifier = order.customer?.name || order.customer;
                 if (customerIdentifier) todayCustomers.add(customerIdentifier);
             } else if (orderDateStr === yesterdayStr) {
                 yesterdayRevenue += orderTotal;
+                yesterdayProfit += profit;
                 const customerIdentifier = order.customer?.name || order.customer;
                 if (customerIdentifier) yesterdayCustomers.add(customerIdentifier);
             }
@@ -244,6 +277,7 @@ export const NexventoryProvider = ({ children }) => {
                 const index = 6 - diffDays;
                 if (index >= 0 && index < 7) {
                     weekData[index] += orderTotal;
+                    weekProfitData[index] += profit;
                 }
             }
 
@@ -251,6 +285,7 @@ export const NexventoryProvider = ({ children }) => {
                 const weekIndex = 3 - Math.floor(diffDays / 7);
                 if (weekIndex >= 0 && weekIndex < 4) {
                     monthData[weekIndex] += orderTotal;
+                    monthProfitData[weekIndex] += profit;
                     monthOrdersData[weekIndex] += 1;
                 }
             }
@@ -270,36 +305,65 @@ export const NexventoryProvider = ({ children }) => {
             customerTrend = ((todayCustomers.size - yesterdayCustomers.size) / yesterdayCustomers.size) * 100;
         }
 
+        let profitTrend = 0;
+        if (yesterdayProfit === 0) {
+            profitTrend = todayProfit > 0 ? 100 : 0;
+        } else {
+            profitTrend = ((todayProfit - yesterdayProfit) / yesterdayProfit) * 100;
+        }
+
         setStats({
             totalStock,
             todayRevenue,
+            todayProfit,
             todayCustomers: todayCustomers.size,
             revenueTrend: Number(revenueTrend.toFixed(1)),
+            profitTrend: Number(profitTrend.toFixed(1)),
             customerTrend: Number(customerTrend.toFixed(1)),
             totalOrders: orders.length,
             monthOrdersData,
             salesData: {
                 weekly: {
                     labels: weekLabels,
-                    datasets: [{
-                        label: 'Sales (₹)',
-                        data: weekData,
-                        borderColor: '#4f46e5',
-                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                    }]
+                    datasets: [
+                        {
+                            label: 'Sales (₹)',
+                            data: weekData,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                        },
+                        {
+                            label: 'Profit (₹)',
+                            data: weekProfitData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                        }
+                    ]
                 },
                 monthly: {
                     labels: monthLabels,
-                    datasets: [{
-                        label: 'Sales (₹)',
-                        data: monthData,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                    }]
+                    datasets: [
+                        {
+                            label: 'Sales (₹)',
+                            data: monthData,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                        },
+                        {
+                            label: 'Profit (₹)',
+                            data: monthProfitData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                        }
+                    ]
                 }
             }
         });

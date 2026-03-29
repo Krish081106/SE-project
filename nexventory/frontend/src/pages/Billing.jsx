@@ -47,6 +47,7 @@ const Billing = () => {
         newItems[index].productId = productId;
         newItems[index].name = product ? product.name : '';
         newItems[index].price = product ? product.price : 0;
+        newItems[index].wholesalePrice = product ? (product.wholesalePrice || 0) : 0;
         newItems[index].total = newItems[index].quantity * (product ? product.price : 0);
         setItems(newItems);
     };
@@ -111,7 +112,7 @@ const Billing = () => {
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!validateOrder()) return;
 
         const newOrder = {
@@ -122,6 +123,7 @@ const Billing = () => {
                 productId: item.productId,
                 name: item.name,
                 price: item.price,
+                wholesalePrice: item.wholesalePrice || 0,
                 quantity: item.quantity,
                 total: item.total
             })),
@@ -130,13 +132,15 @@ const Billing = () => {
             status: 'Completed'
         };
 
-        addOrder(newOrder);
+        const success = await addOrder(newOrder);
 
-        alert('Order created successfully and saved to history!');
-        // Reset form
-        setCustomer({ name: '', phone: '', email: '' });
-        setItems([{ id: Date.now(), productId: '', price: 0, quantity: 1, total: 0 }]);
-        generateBillId();
+        if (success) {
+            alert('Order created successfully and saved to history!');
+            // Reset form
+            setCustomer({ name: '', phone: '', email: '' });
+            setItems([{ id: Date.now(), productId: '', price: 0, quantity: 1, total: 0 }]);
+            generateBillId();
+        }
     };
 
     return (
@@ -473,6 +477,11 @@ const Billing = () => {
             print-color-adjust: exact !important;
           }
 
+          body {
+            background-color: white !important;
+            color: black !important;
+          }
+
           body * {
             visibility: hidden;
           }
@@ -487,8 +496,10 @@ const Billing = () => {
             left: 0;
             top: 0;
             width: 100%;
+            min-height: 100vh;
             padding: 2rem;
-            color: black;
+            color: black !important;
+            background-color: white !important;
           }
 
           .invoice-print-header {

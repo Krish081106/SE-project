@@ -17,6 +17,7 @@ const Products = () => {
         name: '',
         category: '',
         price: '',
+        wholesalePrice: '',
         stock: '',
         status: 'In Stock'
     });
@@ -50,18 +51,20 @@ const Products = () => {
             updateProduct(editingId, {
                 ...newProduct,
                 price: parseFloat(newProduct.price),
+                wholesalePrice: parseFloat(newProduct.wholesalePrice) || 0,
                 stock: parseInt(newProduct.stock) || 0
             });
         } else {
             addProduct({
                 ...newProduct,
                 price: parseFloat(newProduct.price),
+                wholesalePrice: parseFloat(newProduct.wholesalePrice) || 0,
                 stock: parseInt(newProduct.stock) || 0
             });
         }
 
         // Reset and close
-        setNewProduct({ name: '', category: '', price: '', stock: '', status: 'In Stock' });
+        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '', status: 'In Stock' });
         setIsEditing(false);
         setEditingId(null);
         setError('');
@@ -73,6 +76,7 @@ const Products = () => {
             name: product.name,
             category: product.category,
             price: product.price,
+            wholesalePrice: product.wholesalePrice || 0,
             stock: product.stock,
             status: product.status
         });
@@ -85,7 +89,7 @@ const Products = () => {
     const openAddModal = () => {
         setIsEditing(false);
         setEditingId(null);
-        setNewProduct({ name: '', category: '', price: '', stock: '', status: 'In Stock' });
+        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '', status: 'In Stock' });
         setError('');
         setShowModal(true);
     };
@@ -93,7 +97,7 @@ const Products = () => {
     const handleCloseModal = () => {
         setIsEditing(false);
         setEditingId(null);
-        setNewProduct({ name: '', category: '', price: '', stock: '', status: 'In Stock' });
+        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '', status: 'In Stock' });
         setError('');
         setShowModal(false);
     };
@@ -151,7 +155,8 @@ const Products = () => {
                                 <th>Product ID</th>
                                 <th>Name</th>
                                 <th>Category</th>
-                                <th>Price</th>
+                                <th>Retail Price</th>
+                                <th>Wholesale Price</th>
                                 <th>Stock</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -166,6 +171,7 @@ const Products = () => {
                                         <td className="font-bold">{product.name}</td>
                                         <td>{product.category}</td>
                                         <td>{formatCurrency(product.price)}</td>
+                                        <td>{formatCurrency(product.wholesalePrice || 0)}</td>
                                         <td>{product.stock}</td>
                                         <td>
                                             <span className={`status-badge ${product.status.toLowerCase().replace(/ /g, '-')}`}>
@@ -241,13 +247,23 @@ const Products = () => {
                             </div>
                             <div className="form-row mb-6">
                                 <div className="form-group">
-                                    <label>Price</label>
+                                    <label>Retail Price</label>
                                     <input
                                         type="number"
                                         step="0.01"
                                         required
                                         value={newProduct.price}
                                         onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Wholesale Cost</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        required
+                                        value={newProduct.wholesalePrice}
+                                        onChange={(e) => setNewProduct({ ...newProduct, wholesalePrice: e.target.value })}
                                     />
                                 </div>
                                 <div className="form-group">

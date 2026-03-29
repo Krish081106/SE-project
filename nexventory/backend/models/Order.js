@@ -40,6 +40,11 @@ const OrderSchema = new mongoose.Schema({
             type: Number,
             required: true
         },
+        wholesalePrice: {
+            type: Number,
+            required: false,
+            default: 0
+        },
         total: {
             type: Number,
             required: true

@@ -5,13 +5,14 @@ import {
     LinearScale,
     PointElement,
     LineElement,
+    ArcElement,
     Title,
     Tooltip,
     Legend,
     Filler
 } from 'chart.js';
-import { Line } from 'react-chartjs-2';
-import { DollarSign, Users, Package, ArrowUpRight, ArrowDownRight, IndianRupee } from 'lucide-react';
+import { Doughnut, Line } from 'react-chartjs-2';
+import { DollarSign, Users, Package, ArrowUpRight, ArrowDownRight, IndianRupee, TrendingUp } from 'lucide-react';
 import { useNexventory } from '../context/NexventoryContext';
 
 ChartJS.register(
@@ -19,6 +20,7 @@ ChartJS.register(
     LinearScale,
     PointElement,
     LineElement,
+    ArcElement,
     Title,
     Tooltip,
     Legend,
@@ -72,6 +74,53 @@ const Dashboard = () => {
             labels: data?.labels || [],
             datasets: data?.datasets || [],
         };
+    };
+
+    const getPieData = () => {
+        const categoryCount = {};
+        products.forEach(p => {
+            const cat = p.category || 'Other';
+            categoryCount[cat] = (categoryCount[cat] || 0) + (p.stock || 0);
+        });
+
+        const labels = Object.keys(categoryCount);
+        const data = Object.values(categoryCount);
+
+        return {
+            labels,
+            datasets: [
+                {
+                    data,
+                    backgroundColor: [
+                        'rgba(79, 70, 229, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(14, 165, 233, 0.8)',
+                        'rgba(236, 72, 153, 0.8)',
+                    ],
+                    borderWidth: 0,
+                }
+            ]
+        };
+    };
+
+    const pieOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { color: '#64748b', boxWidth: 12, padding: 15 }
+            },
+            title: {
+                display: true,
+                text: 'Stock by Category',
+                color: '#64748b',
+                font: { size: 14, weight: '600' }
+            }
+        }
     };
 
     if (products.length === 0) {
@@ -162,12 +211,26 @@ const Dashboard = () => {
                         </span>
                     </div>
                 </div>
+
+                <div className="card stat-card">
+                    <div className="stat-icon-wrapper bg-blue-100 text-blue-600">
+                        <TrendingUp size={24} color="#3b82f6" />
+                    </div>
+                    <div className="stat-content">
+                        <p className="stat-label">Today's Profit</p>
+                        <h3 className="stat-value">{formatCurrency(stats.todayProfit || 0)}</h3>
+                        <span className={`stat-trend ${stats.profitTrend >= 0 ? 'positive' : 'negative'}`}>
+                            {stats.profitTrend >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />} 
+                            {stats.profitTrend > 0 ? '+' : ''}{stats.profitTrend}%
+                        </span>
+                    </div>
+                </div>
             </div>
 
             {/* Sales Overview Chart */}
             <div className="card chart-section">
                 <div className="section-header">
-                    <h2>Sales Overview</h2>
+                    <h2>Revenue & Profit Overview</h2>
                     <div className="toggle-group">
                         <button
                             className={`toggle-btn ${chartView === 'weekly' ? 'active' : ''}`}
@@ -183,8 +246,13 @@ const Dashboard = () => {
                         </button>
                     </div>
                 </div>
-                <div className="chart-container">
-                    <Line options={chartOptions} data={getChartData()} />
+                <div className="charts-wrapper" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                    <div className="line-chart-container" style={{ flex: '1 1 60%', minWidth: '300px', height: '300px' }}>
+                        <Line options={chartOptions} data={getChartData()} />
+                    </div>
+                    <div className="pie-chart-container" style={{ flex: '1 1 30%', minWidth: '250px', height: '300px', display: 'flex', justifyContent: 'center' }}>
+                        <Doughnut options={pieOptions} data={getPieData()} />
+                    </div>
                 </div>
             </div>
 

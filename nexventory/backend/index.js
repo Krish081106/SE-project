@@ -5,10 +5,10 @@ const connectDB = require('./db');
 
 const mockData = {
     products: [
-        { id: 'PROD-001', name: 'Wireless Headphones', category: 'Electronics', price: 99.99, stock: 45, status: 'In Stock' },
-        { id: 'PROD-002', name: 'Mechanical Keyboard', category: 'Electronics', price: 129.50, stock: 12, status: 'Low Stock' },
-        { id: 'PROD-003', name: 'Ergonomic Mouse', category: 'Accessories', price: 49.99, stock: 0, status: 'Out of Stock' },
-        { id: 'PROD-004', name: 'USB-C Hub', category: 'Accessories', price: 29.99, stock: 88, status: 'In Stock' },
+        { id: 'PROD-001', name: 'Wireless Headphones', category: 'Electronics', price: 99.99, wholesalePrice: 60.00, stock: 45, status: 'In Stock' },
+        { id: 'PROD-002', name: 'Mechanical Keyboard', category: 'Electronics', price: 129.50, wholesalePrice: 85.00, stock: 12, status: 'Low Stock' },
+        { id: 'PROD-003', name: 'Ergonomic Mouse', category: 'Accessories', price: 49.99, wholesalePrice: 25.00, stock: 0, status: 'Out of Stock' },
+        { id: 'PROD-004', name: 'USB-C Hub', category: 'Accessories', price: 29.99, wholesalePrice: 15.00, stock: 88, status: 'In Stock' },
     ],
     orders: [
         { id: 'ORD-2023-001', customer: 'Alice Johnson', date: '2023-10-25', total: 149.98, items: 2, status: 'Completed' },
@@ -72,7 +72,7 @@ app.get('/api/orders', async (req, res) => {
 // Create a product
 app.post('/api/products', async (req, res) => {
     try {
-        const { name, category, price, stock } = req.body;
+        const { name, category, price, wholesalePrice, stock } = req.body;
         
         // Simple status logic
         let status = 'In Stock';
@@ -85,6 +85,7 @@ app.post('/api/products', async (req, res) => {
             name,
             category,
             price,
+            wholesalePrice: wholesalePrice || 0,
             stock,
             status
         });
@@ -156,6 +157,7 @@ app.post('/api/orders', async (req, res) => {
 
             // Deduct stock
             product.stock -= item.quantity;
+            item.wholesalePrice = product.wholesalePrice || 0;
             
             // Update status
             if (product.stock === 0) product.status = 'Out of Stock';

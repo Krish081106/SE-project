@@ -20,7 +20,7 @@ async function seed() {
     console.log('Starting to seed items...');
     for (const item of items) {
         try {
-            const res = await fetch('http://http://0.0.0.0:3000/api/products', {
+            const res = await fetch('http://localhost:3000/api/products', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(item)
