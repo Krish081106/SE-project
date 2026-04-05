@@ -190,54 +190,34 @@ export const NexventoryProvider = ({ children }) => {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const now = audioCtx.currentTime;
 
-            // Helper: create a rich bell strike
-            const playBell = (freq, time, vol) => {
-                // Main tone
+            // Helper: create a loud, noticeable warning beep
+            const playLoudBeep = (freq, time, duration, vol) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.type = 'sine';
+                
+                // Square wave is much sharper and more noticeable
+                osc.type = 'square';
                 osc.frequency.setValueAtTime(freq, time);
-                gain.gain.setValueAtTime(vol, time);
-                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.8);
+                
+                // Envelope for a sharp, sustained attack and quick cut-off
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(vol, time + 0.01);
+                gain.gain.setValueAtTime(vol, time + duration - 0.02);
+                gain.gain.linearRampToValueAtTime(0, time + duration);
+                
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
+                
                 osc.start(time);
-                osc.stop(time + 0.8);
-
-                // Harmonic overtone (makes it sound bell-like)
-                const osc2 = audioCtx.createOscillator();
-                const gain2 = audioCtx.createGain();
-                osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(freq * 2.5, time);
-                gain2.gain.setValueAtTime(vol * 0.3, time);
-                gain2.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
-                osc2.connect(gain2);
-                gain2.connect(audioCtx.destination);
-                osc2.start(time);
-                osc2.stop(time + 0.4);
-
-                // Sub harmonic (warmth)
-                const osc3 = audioCtx.createOscillator();
-                const gain3 = audioCtx.createGain();
-                osc3.type = 'sine';
-                osc3.frequency.setValueAtTime(freq * 0.5, time);
-                gain3.gain.setValueAtTime(vol * 0.15, time);
-                gain3.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
-                osc3.connect(gain3);
-                gain3.connect(audioCtx.destination);
-                osc3.start(time);
-                osc3.stop(time + 0.6);
+                osc.stop(time + duration);
             };
 
-            // Ding-dong pattern
-            playBell(1047, now, 0.5);          // C6 - "Ding"
-            playBell(784, now + 0.5, 0.45);    // G5 - "Dong"
+            // Urgent warning pattern: fast triple beep at a higher pitch and volume
+            playLoudBeep(880, now, 0.15, 0.5);        // A5
+            playLoudBeep(880, now + 0.2, 0.15, 0.5);  // A5
+            playLoudBeep(1046.50, now + 0.4, 0.25, 0.5); // C6 slightly longer at the end
 
-            // Softer repeat after pause
-            playBell(1047, now + 1.4, 0.35);   // C6 - "Ding" (softer)
-            playBell(784, now + 1.9, 0.3);     // G5 - "Dong" (softer)
-
-            setTimeout(() => audioCtx.close(), 3000);
+            setTimeout(() => audioCtx.close(), 2000);
         } catch (e) {
             console.warn('Could not play notification sound:', e);
         }
@@ -263,6 +243,17 @@ export const NexventoryProvider = ({ children }) => {
 
         prevNotifIdsRef.current = currentIds;
     }, [notifications, playNotificationSound]);
+
+    // Play sound periodically (every 2 mins) if there are active notifications
+    useEffect(() => {
+        if (notifications.length === 0) return;
+
+        const intervalId = setInterval(() => {
+            playNotificationSound();
+        }, 120000); // 120000 ms = 2 minutes
+
+        return () => clearInterval(intervalId);
+    }, [notifications.length, playNotificationSound]);
 
     // Persist dismissed notifications & threshold
     useEffect(() => {
