@@ -3,7 +3,7 @@ import { Search, Plus, Filter, MoreHorizontal, X, Trash2, Edit2 } from 'lucide-r
 import { useNexventory } from '../context/NexventoryContext';
 
 const Products = () => {
-    const { products, addProduct, updateProduct, deleteProduct, formatCurrency } = useNexventory();
+    const { products, addProduct, updateProduct, deleteProduct, formatCurrency, lowStockThreshold } = useNexventory();
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [sortBy, setSortBy] = useState('');
@@ -18,9 +18,16 @@ const Products = () => {
         category: '',
         price: '',
         wholesalePrice: '',
-        stock: '',
-        status: 'In Stock'
+        stock: ''
     });
+
+    // Auto-calculate status from stock
+    const getAutoStatus = (stock) => {
+        const qty = parseInt(stock) || 0;
+        if (qty === 0) return 'Out of Stock';
+        if (qty < lowStockThreshold) return 'Low Stock';
+        return 'In Stock';
+    };
 
     const categories = [...new Set(products.map(p => p.category))].filter(Boolean);
 
@@ -47,24 +54,23 @@ const Products = () => {
             return;
         }
 
+        const stockQty = parseInt(newProduct.stock) || 0;
+        const productData = {
+            ...newProduct,
+            price: parseFloat(newProduct.price),
+            wholesalePrice: parseFloat(newProduct.wholesalePrice) || 0,
+            stock: stockQty,
+            status: getAutoStatus(stockQty)
+        };
+
         if (isEditing) {
-            updateProduct(editingId, {
-                ...newProduct,
-                price: parseFloat(newProduct.price),
-                wholesalePrice: parseFloat(newProduct.wholesalePrice) || 0,
-                stock: parseInt(newProduct.stock) || 0
-            });
+            updateProduct(editingId, productData);
         } else {
-            addProduct({
-                ...newProduct,
-                price: parseFloat(newProduct.price),
-                wholesalePrice: parseFloat(newProduct.wholesalePrice) || 0,
-                stock: parseInt(newProduct.stock) || 0
-            });
+            addProduct(productData);
         }
 
         // Reset and close
-        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '', status: 'In Stock' });
+        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '' });
         setIsEditing(false);
         setEditingId(null);
         setError('');
@@ -77,8 +83,7 @@ const Products = () => {
             category: product.category,
             price: product.price,
             wholesalePrice: product.wholesalePrice || 0,
-            stock: product.stock,
-            status: product.status
+            stock: product.stock
         });
         setIsEditing(true);
         setEditingId(product.id);
@@ -89,7 +94,7 @@ const Products = () => {
     const openAddModal = () => {
         setIsEditing(false);
         setEditingId(null);
-        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '', status: 'In Stock' });
+        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '' });
         setError('');
         setShowModal(true);
     };
@@ -97,7 +102,7 @@ const Products = () => {
     const handleCloseModal = () => {
         setIsEditing(false);
         setEditingId(null);
-        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '', status: 'In Stock' });
+        setNewProduct({ name: '', category: '', price: '', wholesalePrice: '', stock: '' });
         setError('');
         setShowModal(false);
     };
@@ -223,28 +228,23 @@ const Products = () => {
                                     onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                                 />
                             </div>
-                            <div className="form-row mb-4">
-                                <div className="form-group">
-                                    <label>Category</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={newProduct.category}
-                                        onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Status</label>
-                                    <select
-                                        value={newProduct.status}
-                                        onChange={(e) => setNewProduct({ ...newProduct, status: e.target.value })}
-                                    >
-                                        <option>In Stock</option>
-                                        <option>Low Stock</option>
-                                        <option>Out of Stock</option>
-                                    </select>
-                                </div>
+                            <div className="form-group mb-4">
+                                <label>Category</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newProduct.category}
+                                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                                />
                             </div>
+                            {newProduct.stock !== '' && (
+                                <div className="auto-status-preview mb-4">
+                                    <span className="auto-status-label">Auto Status:</span>
+                                    <span className={`status-badge ${getAutoStatus(newProduct.stock).toLowerCase().replace(/ /g, '-')}`}>
+                                        {getAutoStatus(newProduct.stock)}
+                                    </span>
+                                </div>
+                            )}
                             <div className="form-row mb-6">
                                 <div className="form-group">
                                     <label>Retail Price</label>
@@ -412,6 +412,24 @@ const Products = () => {
 
         .mb-4 { margin-bottom: 1rem; }
         .mb-6 { margin-bottom: 1.5rem; }
+
+        .auto-status-preview {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1rem;
+          background: var(--background);
+          border: 1px solid var(--border);
+          border-radius: var(--radius);
+        }
+
+        .auto-status-label {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
 
         .modal-footer {
           display: flex;

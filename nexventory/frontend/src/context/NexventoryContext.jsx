@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { initialStats } from '../data/mockData';
 import { useAuth } from './AuthContext';
 
@@ -32,6 +32,17 @@ export const NexventoryProvider = ({ children }) => {
     const [stats, setStats] = useState(initialStats);
     const [currency, setCurrency] = useState('INR');
     const [loading, setLoading] = useState(true);
+
+    // Low-stock notification system
+    const [lowStockThreshold, setLowStockThreshold] = useState(() => {
+        try { return parseInt(localStorage.getItem('lowStockThreshold')) || 10; }
+        catch { return 10; }
+    });
+    const [notifications, setNotifications] = useState([]);
+    const [dismissedNotifications, setDismissedNotifications] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('dismissedNotifications')) || []; }
+        catch { return []; }
+    });
 
     const getHeaders = () => {
         const user = JSON.parse(localStorage.getItem('user'));
@@ -116,6 +127,163 @@ export const NexventoryProvider = ({ children }) => {
     useEffect(() => {
         updateStats();
     }, [products, orders]);
+
+    // Low-stock notification generation
+    useEffect(() => {
+        if (products.length === 0) return;
+        const lowStockProducts = products.filter(p => p.stock > 0 && p.stock < lowStockThreshold);
+        const outOfStockProducts = products.filter(p => p.stock === 0);
+
+        const newNotifications = [];
+
+        lowStockProducts.forEach(p => {
+            const id = `low-stock-${p.id}`;
+            if (!dismissedNotifications.includes(id)) {
+                newNotifications.push({
+                    id,
+                    type: 'warning',
+                    productId: p.id,
+                    productName: p.name,
+                    stock: p.stock,
+                    message: `Limited stock for "${p.name}" (${p.stock} left) — you should order more.`,
+                    timestamp: Date.now()
+                });
+            }
+        });
+
+        outOfStockProducts.forEach(p => {
+            const id = `out-of-stock-${p.id}`;
+            if (!dismissedNotifications.includes(id)) {
+                newNotifications.push({
+                    id,
+                    type: 'danger',
+                    productId: p.id,
+                    productName: p.name,
+                    stock: 0,
+                    message: `"${p.name}" is out of stock! You should order immediately.`,
+                    timestamp: Date.now()
+                });
+            }
+        });
+
+        setNotifications(newNotifications);
+    }, [products, lowStockThreshold, dismissedNotifications]);
+
+    // Notification sound system
+    const prevNotifIdsRef = useRef(new Set());
+    const hasInteractedRef = useRef(false);
+
+    // Track user interaction so we can play audio (browser policy)
+    useEffect(() => {
+        const markInteracted = () => { hasInteractedRef.current = true; };
+        window.addEventListener('click', markInteracted, { once: true });
+        window.addEventListener('keydown', markInteracted, { once: true });
+        return () => {
+            window.removeEventListener('click', markInteracted);
+            window.removeEventListener('keydown', markInteracted);
+        };
+    }, []);
+
+    const playNotificationSound = useCallback(() => {
+        if (!hasInteractedRef.current) return;
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const now = audioCtx.currentTime;
+
+            // Helper: create a rich bell strike
+            const playBell = (freq, time, vol) => {
+                // Main tone
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, time);
+                gain.gain.setValueAtTime(vol, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.8);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(time);
+                osc.stop(time + 0.8);
+
+                // Harmonic overtone (makes it sound bell-like)
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(freq * 2.5, time);
+                gain2.gain.setValueAtTime(vol * 0.3, time);
+                gain2.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+                osc2.start(time);
+                osc2.stop(time + 0.4);
+
+                // Sub harmonic (warmth)
+                const osc3 = audioCtx.createOscillator();
+                const gain3 = audioCtx.createGain();
+                osc3.type = 'sine';
+                osc3.frequency.setValueAtTime(freq * 0.5, time);
+                gain3.gain.setValueAtTime(vol * 0.15, time);
+                gain3.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
+                osc3.connect(gain3);
+                gain3.connect(audioCtx.destination);
+                osc3.start(time);
+                osc3.stop(time + 0.6);
+            };
+
+            // Ding-dong pattern
+            playBell(1047, now, 0.5);          // C6 - "Ding"
+            playBell(784, now + 0.5, 0.45);    // G5 - "Dong"
+
+            // Softer repeat after pause
+            playBell(1047, now + 1.4, 0.35);   // C6 - "Ding" (softer)
+            playBell(784, now + 1.9, 0.3);     // G5 - "Dong" (softer)
+
+            setTimeout(() => audioCtx.close(), 3000);
+        } catch (e) {
+            console.warn('Could not play notification sound:', e);
+        }
+    }, []);
+
+    // Play sound when new notifications appear
+    useEffect(() => {
+        const currentIds = new Set(notifications.map(n => n.id));
+        const prevIds = prevNotifIdsRef.current;
+
+        // Check if there are any truly new notification IDs
+        let hasNew = false;
+        for (const id of currentIds) {
+            if (!prevIds.has(id)) {
+                hasNew = true;
+                break;
+            }
+        }
+
+        if (hasNew && currentIds.size > 0) {
+            playNotificationSound();
+        }
+
+        prevNotifIdsRef.current = currentIds;
+    }, [notifications, playNotificationSound]);
+
+    // Persist dismissed notifications & threshold
+    useEffect(() => {
+        localStorage.setItem('dismissedNotifications', JSON.stringify(dismissedNotifications));
+    }, [dismissedNotifications]);
+
+    useEffect(() => {
+        localStorage.setItem('lowStockThreshold', lowStockThreshold.toString());
+    }, [lowStockThreshold]);
+
+    const dismissNotification = useCallback((notifId) => {
+        setDismissedNotifications(prev => [...prev, notifId]);
+    }, []);
+
+    const dismissAllNotifications = useCallback(() => {
+        setDismissedNotifications(prev => [...prev, ...notifications.map(n => n.id)]);
+    }, [notifications]);
+
+    const resetDismissedNotifications = useCallback(() => {
+        setDismissedNotifications([]);
+    }, []);
 
     // Actions
     const toggleDarkMode = () => setDarkMode(prev => !prev);
@@ -389,7 +557,13 @@ export const NexventoryProvider = ({ children }) => {
             addOrder,
             stats,
             currency,
-            formatCurrency
+            formatCurrency,
+            notifications,
+            dismissNotification,
+            dismissAllNotifications,
+            resetDismissedNotifications,
+            lowStockThreshold,
+            setLowStockThreshold
         }}>
             {children}
         </NexventoryContext.Provider>
