@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { initialStats } from '../data/mockData';
 import { useAuth } from './AuthContext';
 
-const API_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+// Use the same backend base URL as the auth flow (from Vite env),
+// so all data mutations hit the real API instead of the dev server origin/port.
+const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 const NexventoryContext = createContext();
 

@@ -1,11 +1,16 @@
 export const mockProducts = [
-    { id: 'PROD-001', name: 'Wireless Headphones', category: 'Electronics', price: 99.99, stock: 45, status: 'In Stock' },
-    { id: 'PROD-002', name: 'Mechanical Keyboard', category: 'Electronics', price: 129.50, stock: 12, status: 'Low Stock' },
-    { id: 'PROD-003', name: 'Ergonomic Mouse', category: 'Accessories', price: 49.99, stock: 0, status: 'Out of Stock' },
-    { id: 'PROD-004', name: 'USB-C Hub', category: 'Accessories', price: 29.99, stock: 88, status: 'In Stock' },
-    { id: 'PROD-005', name: 'Monitor Stand', category: 'Furniture', price: 65.00, stock: 23, status: 'In Stock' },
-    { id: 'PROD-006', name: 'Webcam 1080p', category: 'Electronics', price: 79.99, stock: 5, status: 'Low Stock' },
-    { id: 'PROD-007', name: 'Desk Pad', category: 'Accessories', price: 15.00, stock: 120, status: 'In Stock' },
+    { id: 'PROD-001', name: 'Basmati Rice 5kg', category: 'Groceries', price: 12.99, stock: 42, status: 'In Stock' },
+    { id: 'PROD-002', name: 'Whole Wheat Flour 5kg', category: 'Groceries', price: 9.49, stock: 30, status: 'In Stock' },
+    { id: 'PROD-003', name: 'Sunflower Cooking Oil 1L', category: 'Groceries', price: 4.29, stock: 8, status: 'Low Stock' },
+    { id: 'PROD-004', name: 'Brown Bread Loaf', category: 'Bakery', price: 1.99, stock: 0, status: 'Out of Stock' },
+    { id: 'PROD-005', name: 'Free-Range Eggs (12 pack)', category: 'Dairy & Eggs', price: 3.99, stock: 55, status: 'In Stock' },
+    { id: 'PROD-006', name: 'Organic Milk 1L', category: 'Dairy & Eggs', price: 2.49, stock: 12, status: 'Low Stock' },
+    { id: 'PROD-007', name: 'Bananas (1 Dozen)', category: 'Fruits', price: 1.89, stock: 75, status: 'In Stock' },
+    { id: 'PROD-008', name: 'Fresh Apples 1kg', category: 'Fruits', price: 3.59, stock: 33, status: 'In Stock' },
+    { id: 'PROD-009', name: 'Potatoes 2kg', category: 'Vegetables', price: 2.49, stock: 64, status: 'In Stock' },
+    { id: 'PROD-010', name: 'Onions 1kg', category: 'Vegetables', price: 1.79, stock: 95, status: 'In Stock' },
+    { id: 'PROD-011', name: 'Sugar 1kg', category: 'Groceries', price: 1.49, stock: 120, status: 'In Stock' },
+    { id: 'PROD-012', name: 'Iodized Salt 1kg', category: 'Groceries', price: 0.99, stock: 200, status: 'In Stock' },
 ];
 
 export const mockOrders = [

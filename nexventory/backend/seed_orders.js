@@ -1,83 +1,97 @@
-const customers = [
-    'Rajesh Kumar', 'Priya Sharma', 'Amit Patel', 'Rohan Gupta', 'Neha Singh', 
-    'Vikram Malhotra', 'Anjali Desai', 'Suresh Menon', 'Kavita Iyer', 'Manish Reddy',
-    'Arjun Nair', 'Sneha Kapoor', 'Manoj Tiwari', 'Pooja Bhatia', 'Aditya Verma'
+require('dotenv').config();
+const mongoose = require('mongoose');
+const connectDB = require('./db');
+const User = require('./models/User');
+const Product = require('./models/Product');
+const Order = require('./models/Order');
+
+const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randomElement = (arr) => arr[randomInt(0, arr.length - 1)];
+
+const names = [
+    "Rahul Sharma", "Priya Singh", "Amit Patel", "Neha Gupta", 
+    "Ramesh Kumar", "Suresh Verma", "Anjali Yadav", "Vikram Malhotra", 
+    "Meera Reddy", "Sunil Joshi", "Pooja Mishra", "Sanjay Das", 
+    "Kiran Rao", "Deepak Jain", "Kavita Desai", "Aarti Iyer",
+    "Mohit Chawla", "Karan Singh", "Simran Kaur", "Manoj Tiwari",
+    "Ajay Jha", "Rajesh Pillai", "Gaurav Bhatt"
 ];
 
-async function seedOrders() {
-    console.log('Fetching products...');
-    const productsRes = await fetch('http://localhost:5000/api/products');
-    let products = await productsRes.json();
-    
-    if (products.length === 0) {
-        console.log('No products found to create orders from.');
-        return;
+const seedOrders = async () => {
+    await connectDB();
+
+    const user = await User.findOne();
+    if (!user) {
+        console.error("No user found.");
+        process.exit(1);
     }
 
-    // Sort to randomize dates too
-    const pastDates = Array.from({length: 15}, () => {
-        const d = new Date();
-        d.setDate(d.getDate() - Math.floor(Math.random() * 30));
-        return d.toISOString().split('T')[0];
-    }).sort((a,b) => new Date(a) - new Date(b));
+    const products = await Product.find({ user: user._id });
+    if (products.length === 0) {
+        console.error("No products found. Please seed products first.");
+        process.exit(1);
+    }
 
-    console.log('Creating orders...');
-    let successfulCount = 0;
-    
-    for (let i = 0; i < 15; i++) {
-        const customer = customers[Math.floor(Math.random() * customers.length)];
-        const numItems = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
-        
-        const shuffledProducts = [...products].sort(() => 0.5 - Math.random());
-        const selectedProducts = shuffledProducts.slice(0, numItems);
-        
-        const orderItems = [];
-        let totalAmount = 0;
-        
-        for (const p of selectedProducts) {
-            const quantity = Math.floor(Math.random() * 3) + 1; // 1 to 3
-            if (p.stock >= quantity) {
-                const price = Number(p.price);
-                const itemTotal = price * quantity;
-                orderItems.push({ 
+    const ordersToInsert = [];
+    let orderCounter = 1;
+
+    // Loop backwards for 15 days (including today)
+    for (let i = 14; i >= 0; i--) {
+        const orderDate = new Date();
+        orderDate.setDate(orderDate.getDate() - i);
+        const dateString = orderDate.toISOString().split('T')[0];
+
+        const numOrders = randomInt(1, 5);
+
+        for (let j = 0; j < numOrders; j++) {
+            const customerName = randomElement(names);
+            const numItems = randomInt(1, 4); // 1 to 4 distinct items per order
+
+            const shuffledProducts = [...products].sort(() => 0.5 - Math.random());
+            const selectedProducts = shuffledProducts.slice(0, numItems);
+
+            let totalAmount = 0;
+            const items = selectedProducts.map(p => {
+                const quantity = randomInt(1, 3); // 1 to 3 units per item
+                const total = p.price * quantity;
+                totalAmount += total;
+                return {
                     productId: p.id,
                     name: p.name,
-                    price: price,
                     quantity: quantity,
-                    total: itemTotal
-                });
-                totalAmount += itemTotal;
-                p.stock -= quantity; // update local stock for subsequent orders
-            }
-        }
-        
-        if (orderItems.length === 0) continue;
-        
-        const orderPayload = {
-            customer,
-            items: orderItems,
-            totalAmount: Number(totalAmount.toFixed(2)),
-            date: pastDates[i]
-        };
-        
-        try {
-            const res = await fetch('http://localhost:5000/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderPayload)
+                    price: p.price,
+                    wholesalePrice: p.wholesalePrice,
+                    total: total
+                };
             });
-            if (res.ok) {
-                console.log(`Order created for ${customer} on ${pastDates[i]} - Total: ₹${totalAmount.toFixed(2)}`);
-                successfulCount++;
-            } else {
-                const err = await res.json();
-                console.error(`Failed to create order for ${customer}:`, err);
-            }
-        } catch (error) {
-            console.error(`Error creating order for ${customer}: ${error.message}`);
+
+            // unique order ID based on timestamp and counter
+            const uniqueTimestamp = Date.now().toString().slice(-6);
+            const orderId = `ORD-${uniqueTimestamp}-${orderCounter++}`;
+
+            const order = {
+                user: user._id,
+                id: orderId,
+                customer: customerName,
+                date: dateString,
+                totalAmount: totalAmount,
+                items: items,
+                status: 'Completed'
+            };
+            ordersToInsert.push(order);
         }
     }
-    console.log(`Order seeding complete. Successfully added ${successfulCount} orders.`);
-}
+
+    try {
+        // Clear old mock data orders for pure historical test data, or just append
+        // Not clearing to keep what they might already have, just injecting new ones
+        await Order.insertMany(ordersToInsert);
+        console.log(`Successfully seeded ${ordersToInsert.length} orders over the last 15 days.`);
+        process.exit(0);
+    } catch (error) {
+        console.error("Error seeding orders:", error);
+        process.exit(1);
+    }
+};
 
 seedOrders();
