@@ -41,7 +41,7 @@ Small grocery shop owners often struggle with **manual inventory tracking, unexp
 
 ## 🌐 Live Demo
 
-🔗 https://se-project-gilt-three.vercel.app/
+🔗 https://se-project-n09t5yel5-krish-solankis-projects.vercel.app/app
 
 ---
 
